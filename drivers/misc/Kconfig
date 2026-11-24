@@ -583,6 +583,16 @@ config TC9564_PCI
 	  quirk causes the ranges property in the endpoint's devicetree
 	  node to be updated dynamically.
 
+config BISON_USB_SW
+	bool "Force enable MT6771 PHY VBUS"
+	depends on ARCH_MEDIATEK
+	default y
+
+config BISON_VUSB
+	bool "Enable MT6358 VUSB LDO via pwrap"
+	depends on ARCH_MEDIATEK && MTK_PMIC_WRAP
+	default y
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
