@@ -1,0 +1,20 @@
+bison-usb-sw.c and bison-vusb.c are tempoary files added for USB gadget mode, only useful if using Netboot
+
+use original defconfig for compile
+
+if device hangs when loading kernel, disable LEDS_TRIGGER_CPU and CPU_IDLE using menuconfig
+
+build boot.img using
+
+mkbootimg --kernel Image.gz --ramdisk initramfs --dtb mt6771-bison-new.dtb \
+  --base 0 --kernel_offset 0x40080000 --ramdisk_offset 0x55000000 \
+  --second_offset 0 --tags_offset 0x54000000 --dtb_offset 0x54000000 \
+  --pagesize 2048 --header_version 2 --os_version 11.0.0 \
+  --cmdline "bootopt=64S3,32N2,64N2" \
+  -o boot.img
+
+cmdline must feature 'bootopt=64S3,32N2,64N2' in custom boot.img or else kernel will not work
+
+if lk complaints about no node __symbols__ in main dtb, try rebuilding dtb with 
+
+make ARCH=arm64 DTC_FLAGS=-@ mediatek/mt6771-bison-new.dtb
