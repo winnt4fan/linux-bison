@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * credit to those who created a dts for several mt6771 devices
+ * Me when no mainline driver
+ *
+ * fine, I'll do it myself
  */
 /dts-v1/;
 
@@ -23,13 +25,14 @@
 		mmc0 = &mmc0;
 		mmc1 = &mmc1;
 	};
-
+	
 	chosen: chosen {
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
 		stdout-path = "serial0:921600n1";
 		bootargs = "console=tty0 fbcon=map:0 clk_ignore_unused pd_ignore_unused regulator_ignore_unused";
+		/* much needed for video output, disable if not needed */
 		framebuffer@7d8b0000 {
 			compatible = "simple-framebuffer";
 			reg = <0 0x7d8b0000 0 0x2250000>;
@@ -76,6 +79,8 @@
 			no-map;
 		};
 
+	};
+
 	i2c_vbus: i2c-bus-fixed {
 		compatible = "regulator-fixed";
 		regulator-name = "i2c-vbus";
@@ -84,9 +89,7 @@
 		regulator-boot-on;
 	};
 
-	/*
-	 * dtbo overlay required by lk
-	 */
+	/* overlay thing for lk */
 	stock_overlay_stubs {
 		odm: odm { };
 		touch: touch { };
@@ -216,6 +219,7 @@
 	sram-supply = <&mt6358_vsram_gpu_reg>;
 };
 
+/* IOMMU breaks framebuffer apparently */
 &iommu {
 	status = "disabled";
 };
@@ -228,7 +232,7 @@
 	domain-supply = <&mt6358_vsram_gpu_reg>;
 };
 
-/* Touchscreen */
+/* Touchscreen thing, to be changed*/
 &i2c0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c0_pins>;
@@ -237,9 +241,9 @@
 	status = "okay";
 	#address-cells = <1>;
 	#size-cells = <0>;
-
+	
 	touchscreen@10 {
-		compatible = "fixme,bison-touch";	/* to be filled */
+		compatible = "placeholder,bison-touch";		/* checkpoint */
 		reg = <0x10>;
 		interrupts-extended = <&pio 1 IRQ_TYPE_EDGE_FALLING>;
 		reset-gpios = <&pio 2 GPIO_ACTIVE_LOW>;
@@ -439,8 +443,9 @@
 	};
 };
 
+/* mmc0 is useless since device uses UFS 2.1*/
 &mmc0 {
-	status = "okay";
+	status = "disabled";
 	pinctrl-names = "default", "state_uhs";
 	pinctrl-0 = <&mmc0_pins_default>;
 	pinctrl-1 = <&mmc0_pins_uhs>;
@@ -461,6 +466,11 @@
 	non-removable;
 };
 
+/*
+ * Newly added MMC driver
+ * to be changed if something is wrong 
+ * BE VERY CAREFUL OR ELSE YOU WILL CORRUPT YOUR MICROSD CARD
+ */
 &mmc1 {
 	status = "okay";
 	pinctrl-names = "default", "state_uhs";
@@ -478,18 +488,59 @@
 	vqmmc-supply = <&mt6358_vmc_reg>;
 	assigned-clocks = <&topckgen CLK_TOP_MUX_MSDC30_1>;
 	assigned-clock-parents = <&topckgen CLK_TOP_MSDCPLL_D2>;
-	cd-gpios = <&pio 3 GPIO_ACTIVE_LOW>;
+	no-mmc;
+	no-sdio;
+	broken-cd;
 };
 
 &mt6358_vdram2_reg {
 	regulator-always-on;
 };
 
+&mt6358_vemc_reg {
+	regulator-always-on;
+};
+
+/*
+ * Newly added eUFS driver
+ * to be changed if something is wrong 
+ * BE VERY CAREFUL OR ELSE YOU WILL BRICK YOYR DEVICE
+ */
+/ {
+	soc {
+		ufsphy: ufs-phy@11fa0000 {
+			compatible = "mediatek,mt8183-ufsphy";
+			reg = <0 0x11fa0000 0 0xc000>;
+			clocks = <&infracfg CLK_INFRA_UNIPRO_SCK>,
+				 <&infracfg CLK_INFRA_UFS_MP_SAP_BCLK>;
+			clock-names = "unipro", "mp";
+			#phy-cells = <0>;
+		};
+
+		ufshci: ufshci@11270000 {
+			compatible = "mediatek,mt8183-ufshci";
+			reg = <0 0x11270000 0 0x2300>;
+			interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_LOW>;
+			phys = <&ufsphy>;
+			clocks = <&infracfg CLK_INFRA_UFS>;
+			clock-names = "ufs";
+			freq-table-hz = <0 0>;
+			vcc-supply = <&mt6358_vemc_reg>;
+			lanes-per-direction = <1>;
+			mediatek,ufs-disable-mcq;
+			mediatek,ufs-disable-ah8;
+			rpm-level = <0>;
+			spm-level = <0>;
+			status = "okay";
+		};
+	};
+};
+
+
 &pmic {
 	interrupts-extended = <&pio 182 IRQ_TYPE_LEVEL_HIGH>;
 };
 
-/* this is kinda useless for now*/
 &ssusb {
 	status = "okay";
 	mediatek,u3p-dis-msk = <1>;
@@ -635,11 +686,6 @@
 			mediatek,pull-down-adv = <10>;
 		};
 
-		pins-cd {
-			pinmux = <PINMUX_GPIO3__FUNC_GPIO3>;
-			input-enable;
-			bias-pull-up;
-		};
 	};
 
 	mmc1_pins_uhs: mmc1-pins-uhs {
